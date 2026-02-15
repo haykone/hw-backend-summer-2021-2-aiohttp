@@ -3,24 +3,21 @@ import json
 from aiohttp.web import (HTTPBadRequest, HTTPConflict, HTTPNotFound,
                          HTTPUnauthorized)
 from aiohttp_apispec import docs, request_schema, response_schema
-from aiohttp_session import get_session
 
 from app.quiz.models import Answer
 from app.quiz.schemes import (ListQuestionSchema, QuestionSchema,
                               ThemeListSchema, ThemeSchema)
 from app.web.app import View
+from app.web.mixins import AuthRequiredMixin
 from app.web.utils import json_response
 
 
-class ThemeAddView(View):
+class ThemeAddView(AuthRequiredMixin, View):
     @docs(tags=["quiz"], summary="Add new theme")
     @request_schema(ThemeSchema)
     @response_schema(ThemeSchema)
     async def post(self):
-        session = await get_session(self.request)
-        if not session or "admin" not in session:
-            raise HTTPUnauthorized()
-
+        await self.check_auth()
         body = await self.request.read()
         raw = json.loads(body.decode()) if body else {}
         data = ThemeSchema().load(raw)
@@ -34,27 +31,21 @@ class ThemeAddView(View):
         return json_response(data=ThemeSchema().dump(theme))
 
 
-class ThemeListView(View):
+class ThemeListView(AuthRequiredMixin, View):
     @docs(tags=["quiz"], summary="List all themes")
     @response_schema(ThemeListSchema)
     async def get(self):
-        session = await get_session(self.request)
-        if not session or "admin" not in session:
-            raise HTTPUnauthorized()
-
+        await self.check_auth()
         themes = await self.store.quizzes.list_themes()
         return json_response(data=ThemeListSchema().dump({"themes": themes}))
 
 
-class QuestionAddView(View):
+class QuestionAddView(AuthRequiredMixin, View):
     @docs(tags=["quiz"], summary="Add new question")
     @request_schema(QuestionSchema)
     @response_schema(QuestionSchema)
     async def post(self):
-        session = await get_session(self.request)
-        if not session or "admin" not in session:
-            raise HTTPUnauthorized()
-
+        await self.check_auth()
         body = await self.request.read()
         raw = json.loads(body.decode()) if body else {}
         data = QuestionSchema().load(raw)
@@ -95,14 +86,11 @@ class QuestionAddView(View):
         return json_response(data=QuestionSchema().dump(question))
 
 
-class QuestionListView(View):
+class QuestionListView(AuthRequiredMixin, View):
     @docs(tags=["quiz"], summary="List questions by theme")
     @response_schema(ListQuestionSchema)
     async def get(self):
-        session = await get_session(self.request)
-        if not session or "admin" not in session:
-            raise HTTPUnauthorized()
-
+        await self.check_auth()
         theme_id_str = self.request.query.get("theme_id")
         try:
             theme_id = int(theme_id_str) if theme_id_str else None
